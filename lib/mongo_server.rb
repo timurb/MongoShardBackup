@@ -1,6 +1,7 @@
 # To change this template, choose Tools | Templates
 # and open the template in the editor.
 
+require 'rubygems'
 require 'mongo'
 
 class MongoServer
@@ -14,11 +15,10 @@ class MongoServer
   end
 
   def lock
-
+    @admin.command( {"fsync"=>1} )
   end
 
   def unlock
-
   end
 
 end
