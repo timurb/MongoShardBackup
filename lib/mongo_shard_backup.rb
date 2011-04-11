@@ -8,18 +8,23 @@ require 'logger'
 require 'ec2'
 
 class MongoShardBackup
+  CREATED_BY = 'Created by MongoShardBackup'
 
   attr_reader :backed_volumes
 
+
   def initialize(cluster, opts={})
+    cluster = Mongo::Connection.new(cluster) if cluster.is_a?(String)
+
     raise Mongo::NoSharding   if not cluster.dbgrid?
 
-    # TODO: add description
     @opts={
-      :device_name => '/dev/sda1'
+      :device_name => '/dev/sda1',
+      :description => 'Backup of $c($i,$v), $d [$n]',
     }.merge(opts)
     
-    @backed_volumes=[]
+    @backed_volumes = []
+    @created_snapshots = []
     @cluster = cluster
   end
 
@@ -34,32 +39,51 @@ class MongoShardBackup
           node.lock!
           begin
             snapshot_node(node.host)
-          rescue => e
           ensure
             node.unlock!
-            raise e if e
           end
         }
       end
 
-      snapshot_node(@cluster.host)   # snapshot the config server
-                                    # one of them should be on the same
-                                    # node as mongos router
-    rescue => e
+      # config server to snapshot should be running 
+      # on the same host as mongos router at port 27019
+      
+      config = connect_to_config( @cluster.host )
+      config.lock!
+      begin
+        snapshot_node(config.host)
+      ensure
+        config.unlock!
+      end
+
     ensure
       @cluster.start_balancer
-      raise e if e
     end
-    @backed_volumes
+    @created_snapshots
   end
 
-  def snapshot_node(node)
-    instance=EC2Conn.find_instance_by_ip(Socket.getaddrinfo(node, 27017)[0][3])
-    instance[:block_device_mappings].each{|ebs|
-      if ebs[:device_name]==@opts[:device_name]
-        @backed_volumes.push ebs[:ebs_volume_id]  # TODO: code the process
-      end
-    }
+  def snapshot_node( node, opts={} )
+    instance = EC2Conn.find_instance_by_ip(Socket.getaddrinfo(node, 27017)[0][3])
+
+    vol = EC2Conn.instance_vol_by_name( instance, @opts[:device_name] )
+    snapshot = EC2Conn.create_snapshot( vol, description(instance, vol) )
+
+    EC2Conn.wait_snapshot( snapshot[:aws_id] ) unless opts[:nowait]
+
+    @backed_volumes.push( vol )
+    @created_snapshots.push( snapshot[:aws_id] )
+    snapshot
+  end
+
+  def description(instance, volume)
+    instance = instance[:aws_instance_id] unless instance.is_a?(String)
+    desc = @opts[:description]
+    desc.gsub!('$c', @cluster.host.to_s )
+    desc.gsub!('$i', instance )
+    desc.gsub!('$v', volume )
+    desc.gsub!('$d', Date.today.to_s )
+    desc.gsub!('$n', CREATED_BY )
+    desc
   end
 
   def connect_to_replica(replica)
@@ -71,6 +95,10 @@ class MongoShardBackup
       node = split_names(host).flatten.compact
       Mongo::Connection.new(*node)
     }
+  end
+
+  def connect_to_config(host)
+    Mongo::Connection.new(host,27019)
   end
 
   #   splits replica string into array to feed it into Mongo::ReplSetConnection and
