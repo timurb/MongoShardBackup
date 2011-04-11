@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+
+$LOAD_PATH.push File.join( File.dirname(__FILE__), '..', 'lib' )
+
+require 'mongo_shard_backup'
+
+def usage
+  puts "#{$0} mongos.address"
+  exit 1
+end
+
+ARGV.empty? && usage
+
+MongoShardBackup.backup( ARGV[0] ).each { |s| puts s }
