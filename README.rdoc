@@ -1,0 +1,41 @@
+== MongoShardBackup
+
+A tool to backup sharded mongo cluster at EC2.
+This is quite untested yet. Use at own risk.
+
+Requires mongo, right_aws >= 2.1.0 and timurbatyrshin-aws_utils installed.
+
+
+=== Usage
+
+  ec2shardbackup mongos.address
+
+Here mongos.address is the address of mongos router. 
+This router should run on port 27017. This host should also hold one of config 
+servers on port 27019.
+Each replica in the shard should have on of the nodes with priority=0 with 
+MongoDB data placed on EBS.
+
+
+=== Procedure
+
+The script connects to mongos router and obtains the list of used shards.
+Then it stops the balancer, it finds all the assive nodes and create snapshots
+of those. After that it creates a snapshot of the config server.
+
+
+=== Known issues
+
+Executable script currently does not support setting backup options such as
+snapshot description and EBS device to backup. This is TBD soon.
+
+
+=== ToDo
+
+- pass args to executable script
+- add tags to better identify backups
+- gemify
+- cleanup
+- add some tests etc.
+- backups rotation
+- restore procedure
