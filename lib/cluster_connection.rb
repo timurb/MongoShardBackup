@@ -21,11 +21,31 @@ module Mongo
     end
 
     def stop_balancer
+      raise Mongo::NoSharding   if not dbgrid?
+
       self['config']['settings'].update( { :_id => "balancer" }, { :stopped => true } )
+      if block_given?
+        begin
+          yield
+        ensure
+          start_balancer
+        end
+      end
     end
 
     def start_balancer
+      raise Mongo::NoSharding   if not dbgrid?
+
       self['config']['settings'].update( { :_id => "balancer" }, { :stopped => false } )
+    end
+
+    def lock_node(&block)
+      lock!
+      begin
+        yield
+      ensure
+        unlock!
+      end
     end
   end
 

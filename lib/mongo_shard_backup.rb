@@ -2,6 +2,7 @@ require 'rubygems'
 require 'cluster_connection'
 require 'socket'
 require 'logger'
+require 'date'
 require 'timurb-ec2'
 
 class MongoShardBackup
@@ -26,50 +27,39 @@ class MongoShardBackup
   end
 
   def backup
-    @cluster.stop_balancer
-
-    begin
+    @cluster.stop_balancer do
       @cluster.shards.each do |shard|
         replica = connect_to_replica( shard["host"] )
         passives = connect_to_passives( replica.passives )
         passives.each { |node|
-          node.lock!
-          begin
+          node.lock_node do
             snapshot_node(node.host)
-          ensure
-            node.unlock!
           end
         }
       end
 
       # config server to snapshot should be running 
-      # on the same host as mongos router at port 27019
-      
+      # on the same host as mongos router at port 27019      
       config = connect_to_config( @cluster.host )
-      config.lock!
-      begin
+      config.lock_node do
         snapshot_node(config.host)
-      ensure
-        config.unlock!
       end
-
-    ensure
-      @cluster.start_balancer
     end
-    @created_snapshots
+
+    return @created_snapshots
   end
 
-  def snapshot_node( node, opts={} )
+  def snapshot_node( node )
     instance = EC2Conn.find_instance_by_ip(Socket.getaddrinfo(node, 27017)[0][3])
 
     vol = EC2Conn.instance_vol_by_name( instance, @opts[:device_name] )
     snapshot = EC2Conn.create_snapshot( vol, description(instance, vol) )
 
-    EC2Conn.wait_snapshot( snapshot[:aws_id] ) unless opts[:nowait]
+    EC2Conn.wait_snapshot( snapshot[:aws_id] ) unless @opts[:nowait]
 
     @backed_volumes.push( vol )
     @created_snapshots.push( snapshot[:aws_id] )
-    snapshot
+    return snapshot
   end
 
   def description(instance, volume)
@@ -80,7 +70,7 @@ class MongoShardBackup
     desc.gsub!('$v', volume )
     desc.gsub!('$d', Date.today.to_s )
     desc.gsub!('$n', CREATED_BY )
-    desc
+    return desc
   end
 
   def connect_to_replica(replica)
@@ -112,7 +102,7 @@ class MongoShardBackup
   end
 
 
-#  allow usage of MongoBackup.backup(m) to make backups
+#  you can use MongoBackup.backup(m) to make backups
   def self.backup(*args)
     cluster=new(*args)
     cluster.backup
