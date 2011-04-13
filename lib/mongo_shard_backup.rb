@@ -14,15 +14,15 @@ class MongoShardBackup
 
 
   def initialize(cluster, opts={})
-    cluster = Mongo::Connection.new(cluster) if cluster.is_a?(String)
-
-    raise Mongo::NoSharding   if not cluster.dbgrid?
-
     @opts={
       :device_name => '/dev/sda1',
       :description => 'Backup of $c($i,$v), $d [$n]',
     }.merge(opts)
-    
+
+    cluster = Mongo::Connection.new(cluster) if cluster.is_a?(String)
+
+    raise Mongo::NoSharding   if not cluster.dbgrid?
+
     @backed_volumes = []
     @created_snapshots = []
     @cluster = cluster

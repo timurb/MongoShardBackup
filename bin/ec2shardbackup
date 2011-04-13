@@ -1,14 +1,62 @@
 #!/usr/bin/env ruby
 
+# == Synopsis
+#
+#   Backs up sharded mongo cluster located on EC2
+#
+# == Usage
+#
+#   ec2shardbackup [OPTION] mongos.address
+#
+#   -h, --help
+#       show help
+#
+#   -d /dev/sdb1, --device /dev/sdx
+#       set the EBS device to backup
+#       Default: /dev/sda1
+#
+#   -t DESC_STRING, --description DESC_STRING
+#       set the description of snapshots
+#       Default: 'Backup of $c($i,$v), $d [$n]'
+#
+#       Legend:
+#         $c  cluster hostname
+#         $i  instance id
+#         $v  volume id
+#         $d  today's date
+#         $n  'Created by MongoShardBackup'
+#
+
 $LOAD_PATH.push File.join( File.dirname(__FILE__), '..', 'lib' )
 
 require 'mongo_shard_backup'
+require 'getoptlong'
+require 'rdoc/usage'
 
-def usage
-  puts "#{$0} mongos.address"
-  exit 1
+OPTIONS =  [
+  [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
+  [ '--device', '-d', GetoptLong::OPTIONAL_ARGUMENT ],
+  [ '--description', '-t', GetoptLong::OPTIONAL_ARGUMENT ]
+]
+
+options={}
+opts=GetoptLong.new( *OPTIONS )
+
+opts.each do |opt,arg|
+  case opt
+     when '--help'
+       RDoc::usage
+     when OPTIONS[1][0]
+       options[:device_name] = arg
+     when OPTIONS[2][0]
+       options[:description] = arg
+   end
 end
 
-ARGV.empty? && usage
+if ARGV.length != 1
+ puts "Missing argument (try --help)"
+ exit 1
+end
 
-MongoShardBackup.backup( ARGV[0] ).each { |s| puts s }
+
+MongoShardBackup.backup( ARGV[0], options ).each { |s| puts s }

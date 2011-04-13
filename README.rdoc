@@ -32,9 +32,8 @@ snapshot description and EBS device to backup. This is TBD soon.
 
 === ToDo
 
-- pass args to executable script
-- add tags to better identify backups
 - gemify
+- add tags to better identify backups
 - cleanup
 - add some tests etc.
 - backups rotation
