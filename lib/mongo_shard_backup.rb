@@ -1,11 +1,8 @@
-$LOAD_PATH.push File.join(File.dirname(__FILE__),"..","aws_utils")
-
 require 'rubygems'
 require 'cluster_connection'
 require 'socket'
-require 'right_aws'
 require 'logger'
-require 'ec2'
+require 'timurb-ec2'
 
 class MongoShardBackup
   CREATED_BY = 'Created by MongoShardBackup'

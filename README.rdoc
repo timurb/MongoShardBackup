@@ -32,7 +32,6 @@ snapshot description and EBS device to backup. This is TBD soon.
 
 === ToDo
 
-- gemify
 - add tags to better identify backups
 - cleanup
 - add some tests etc.
