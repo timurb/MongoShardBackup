@@ -26,6 +26,13 @@
 #         $d  today's date
 #         $n  'Created by MongoShardBackup'
 #
+#   -e ENV_NAME, --env ENV_NAME
+#       set the tag with environment name
+#       Default: mongos.address
+#
+#   -T tag=val, --tag tag=val
+#       set additional tags (several -T options may be specified)
+#
 
 require 'rubygems'
 require 'mongo_shard_backup'
@@ -33,14 +40,17 @@ require 'getoptlong'
 require 'rdoc/usage'
 
 OPTIONS =  [
-  [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
-  [ '--device', '-d', GetoptLong::OPTIONAL_ARGUMENT ],
-  [ '--description', '-t', GetoptLong::OPTIONAL_ARGUMENT ]
+  [ '--help', '-h', GetoptLong::NO_ARGUMENT ],                # 0
+  [ '--device', '-d', GetoptLong::OPTIONAL_ARGUMENT ],        # 1
+  [ '--description', '-t', GetoptLong::OPTIONAL_ARGUMENT ],   # 2
+  [ '--env','-e', GetoptLong::OPTIONAL_ARGUMENT ],            # 3
+  [ '--tag', '-T', GetoptLong::OPTIONAL_ARGUMENT ],           # 4
 ]
 
 options={}
 opts=GetoptLong.new( *OPTIONS )
 
+options[:tags]={}
 opts.each do |opt,arg|
   case opt
      when '--help'
@@ -49,6 +59,11 @@ opts.each do |opt,arg|
        options[:device_name] = arg
      when OPTIONS[2][0]
        options[:description] = arg
+     when OPTIONS[3][0]
+       options[:env] = arg
+     when OPTIONS[4][0]
+       tag,val = arg.split("=")
+       options[:tags].merge!({tag => val})
    end
 end
 

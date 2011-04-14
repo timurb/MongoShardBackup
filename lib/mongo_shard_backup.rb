@@ -15,6 +15,8 @@ class MongoShardBackup
     @opts={
       :device_name => '/dev/sda1',
       :description => 'Backup of $c($i,$v), $d [$n]',
+      :env => cluster.to_s,
+      :tags => {},
     }.merge(opts)
 
     cluster = Mongo::Connection.new(cluster) if cluster.is_a?(String)
@@ -27,13 +29,15 @@ class MongoShardBackup
   end
 
   def backup
+    @backup_id = Time.now.to_i
     @cluster.stop_balancer do
       @cluster.shards.each do |shard|
         replica = connect_to_replica( shard["host"] )
         passives = connect_to_passives( replica.passives )
         passives.each { |node|
           node.lock_node do
-            snapshot_node(node.host)
+            snap = snapshot_node(node.host)
+            tag_snapshot(snap, replica.name, node.host)
           end
         }
       end
@@ -42,7 +46,8 @@ class MongoShardBackup
       # on the same host as mongos router at port 27019      
       config = connect_to_config( @cluster.host )
       config.lock_node do
-        snapshot_node(config.host)
+        snap = snapshot_node(config.host)
+        tag_snapshot(snap, 'CONFIG', @cluster_host)
       end
     end
 
@@ -60,6 +65,17 @@ class MongoShardBackup
     @backed_volumes.push( vol )
     @created_snapshots.push( snapshot[:aws_id] )
     return snapshot
+  end
+
+  def tag_snapshot( snap, replica, node)
+    EC2Conn.create_tags(snap[:aws_id],
+      { "BackupEnvironment" => @opts[:env],
+        "BackupReplica" => replica,
+        "BackupNode" => node,            # do we need that?
+        "BackupVol"  => snap[:aws_volume_id],
+        "BackupDate" => Date.today.to_s,
+        "BackupID" => @backup_id,
+      }.merge(@opts[:tags]) )
   end
 
   def description(instance, volume)

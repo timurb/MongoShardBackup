@@ -42,6 +42,12 @@ Find the installed binary in $GEM_HOME/bin
         $d  today's date
         $n  'Created by MongoShardBackup'
 
+  -e ENV_NAME, --env ENV_NAME
+     set the tag with environment name
+     Default: mongos.address
+
+  -T tag=val, --tag tag=val
+     set additional tags (several -T options may be specified)
 
 Here mongos.address is the address of mongos router. 
 This router should run on port 27017. This host should also hold one of config 
@@ -60,7 +66,6 @@ of those. After that it creates a snapshot of the config server.
 === ToDo
 
 - add verbose operations
-- add tags to better identify backups
 - cleanup
 - add some tests etc.
 - backups rotation

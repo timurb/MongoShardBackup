@@ -56,6 +56,10 @@ module Mongo
         member["priority"] != 0
       end.map{ |m| m["host"] }
     end
+
+    def name
+      @replica_set
+    end
   end
 
 end
