@@ -23,6 +23,8 @@ module Mongo
     def stop_balancer
       raise Mongo::NoSharding   if not dbgrid?
 
+      @logger.info("Stopping the balancer at #{self.host}")
+
       self['config']['settings'].update( { :_id => "balancer" }, { :stopped => true } )
       if block_given?
         begin
@@ -36,14 +38,20 @@ module Mongo
     def start_balancer
       raise Mongo::NoSharding   if not dbgrid?
 
+      @logger.info("Starting the balancer at #{self.host}")  if @logger
+
       self['config']['settings'].update( { :_id => "balancer" }, { :stopped => false } )
     end
 
     def lock_node(&block)
+
+      @logger.info("Locking the node #{self.host}") if @logger
       lock!
+
       begin
         yield
       ensure
+        @logger.info("Unlocking the node #{self.host}")  if @logger
         unlock!
       end
     end

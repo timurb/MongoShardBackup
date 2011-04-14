@@ -19,7 +19,12 @@ class MongoShardBackup
       :tags => {},
     }.merge(opts)
 
-    cluster = Mongo::Connection.new(cluster) if cluster.is_a?(String)
+    setup_logger
+
+    if cluster.is_a?(String)
+      @logger.info("Connecting to #{cluster}")
+      cluster = Mongo::Connection.new(cluster, nil, :logger=>@logger )
+    end
 
     raise Mongo::NoSharding   if not cluster.dbgrid?
 
@@ -55,11 +60,16 @@ class MongoShardBackup
   end
 
   def snapshot_node( node )
+    @logger.debug("Searching for instance by ip #{node}")
     instance = EC2Conn.find_instance_by_ip(Socket.getaddrinfo(node, 27017)[0][3])
 
+    @logger.debug("Searching for volume by instance id #{instance[:aws_instance_id]}")
     vol = EC2Conn.instance_vol_by_name( instance, @opts[:device_name] )
+
+    @logger.info("Snapshotting the #{vol} (#{@opts[:device_name]}) of #{instance[:aws_instance_id]} (#{node})")
     snapshot = EC2Conn.create_snapshot( vol, description(instance, vol) )
 
+    @logger.debug("Waiting for snapshot to finish")
     EC2Conn.wait_snapshot( snapshot[:aws_id] ) unless @opts[:nowait]
 
     @backed_volumes.push( vol )
@@ -68,6 +78,7 @@ class MongoShardBackup
   end
 
   def tag_snapshot( snap, replica, node)
+    @logger.debug("Adding tags to snapshot #{snap[:aws_id]}")
     EC2Conn.create_tags(snap[:aws_id],
       { "BackupEnvironment" => @opts[:env],
         "BackupReplica" => replica,
@@ -101,7 +112,7 @@ class MongoShardBackup
   end
 
   def connect_to_config(host)
-    Mongo::Connection.new(host,27019)
+    Mongo::Connection.new(host,27019, :logger => @logger)
   end
 
   #   splits replica string into array to feed it into Mongo::ReplSetConnection and
@@ -113,10 +124,22 @@ class MongoShardBackup
       [ names[4], names[6].nil? ? nil : names[6].to_i ],
       [ names[8], names[10].nil? ? nil : names[10].to_i ],
       [ names[12], names[14].nil? ? nil : names[14].to_i ],
-      { :rs_name => names[2] }
+      { :rs_name => names[2],
+        :logger => @logger,
+      }
     ].reject{ |x| x.empty? }
   end
 
+  def setup_logger
+    if @opts[:verbose]
+      @logger = Logger.new( STDERR )
+    else
+      @logger = Logger.new( nil )
+    end
+    @logger.level = @opts[:verbose]
+
+    EC2Conn.ec2( :logger => @logger )
+  end
 
 #  you can use MongoBackup.backup(m) to make backups
   def self.backup(*args)

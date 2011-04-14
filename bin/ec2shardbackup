@@ -33,6 +33,11 @@
 #   -T tag=val, --tag tag=val
 #       set additional tags (several -T options may be specified)
 #
+#   -v [level], --verbose [level]
+#       show some log information. the less level is the more verbose logging
+#       you get. level defaults to 1 if not specified.
+#       Default: no logging
+#
 
 require 'rubygems'
 require 'mongo_shard_backup'
@@ -45,6 +50,7 @@ OPTIONS =  [
   [ '--description', '-t', GetoptLong::OPTIONAL_ARGUMENT ],   # 2
   [ '--env','-e', GetoptLong::OPTIONAL_ARGUMENT ],            # 3
   [ '--tag', '-T', GetoptLong::OPTIONAL_ARGUMENT ],           # 4
+  [ '--verbose', '-v', GetoptLong::OPTIONAL_ARGUMENT ]        # 5
 ]
 
 options={}
@@ -64,6 +70,9 @@ opts.each do |opt,arg|
      when OPTIONS[4][0]
        tag,val = arg.split("=")
        options[:tags].merge!({tag => val})
+     when OPTIONS[5][0]
+       arg = "1" if arg.empty?
+       options[:verbose] = arg.to_i
    end
 end
 

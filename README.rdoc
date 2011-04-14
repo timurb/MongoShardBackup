@@ -49,6 +49,11 @@ Find the installed binary in $GEM_HOME/bin
   -T tag=val, --tag tag=val
      set additional tags (several -T options may be specified)
 
+   -v [level], --verbose [level]
+       show some log information. the less level is the more verbose logging
+       you get. level defaults to 1 if not specified.
+       Default: no logging
+
 Here mongos.address is the address of mongos router. 
 This router should run on port 27017. This host should also hold one of config 
 servers on port 27019.
@@ -65,7 +70,6 @@ of those. After that it creates a snapshot of the config server.
 
 === ToDo
 
-- add verbose operations
 - cleanup
 - add some tests etc.
 - backups rotation
