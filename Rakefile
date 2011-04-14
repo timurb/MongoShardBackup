@@ -12,7 +12,7 @@ require 'rake/gempackagetask'
 
 spec = Gem::Specification.new do |s|
   s.name = 'mongo_shard_backup'
-  s.version = '0.0.1'
+  s.version = '0.0.2'
   s.has_rdoc = true
   s.extra_rdoc_files = ['README.rdoc', 'LICENSE']
   s.summary = 'A tool to backup sharded mongo cluster on EC2'
@@ -24,7 +24,7 @@ spec = Gem::Specification.new do |s|
   s.require_path = "lib"
   s.bindir = "bin"
   s.add_dependency('mongo')
-  s.add_dependency('timurb-aws_utils')
+  s.add_dependency('timurb-aws_utils',[">=0.0.2"])
 end
 
 Rake::GemPackageTask.new(spec) do |p|
