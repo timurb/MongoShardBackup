@@ -43,17 +43,21 @@ module Mongo
       self['config']['settings'].update( { :_id => "balancer" }, { :stopped => false } )
     end
 
-    def lock_node(&block)
+    def safe_unlock!(*args)
+      begin
+        @logger.info("Unlocking the node #{self.host}")  if @logger
+        self.unlock!(*args)
+      rescue => e
+        return e
+      end
+      nil
+    end
+
+    def lock_node!
+      return nil if self.locked?
 
       @logger.info("Locking the node #{self.host}") if @logger
-      lock!
-
-      begin
-        yield
-      ensure
-        @logger.info("Unlocking the node #{self.host}")  if @logger
-        unlock!
-      end
+      return self if self.lock!
     end
   end
 

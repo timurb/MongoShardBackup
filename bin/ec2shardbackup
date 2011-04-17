@@ -81,5 +81,6 @@ if ARGV.length != 1
  exit 1
 end
 
-
-MongoShardBackup.backup( ARGV[0], options ).each { |s| puts s }
+backup=MongoShardBackup.new( ARGV[0], options )
+backup.run
+puts backup.created_snapshots.join("\n")

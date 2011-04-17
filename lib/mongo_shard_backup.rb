@@ -8,7 +8,7 @@ require 'timurb-ec2'
 class MongoShardBackup
   CREATED_BY = 'Created by MongoShardBackup'
 
-  attr_reader :backed_volumes
+  attr_reader :backed_volumes, :created_snapshots
 
 
   def initialize(cluster, opts={})
@@ -33,30 +33,49 @@ class MongoShardBackup
     @cluster = cluster
   end
 
-  def backup
-    @backup_id = Time.now.to_i
+  def run
+    @backup_id = @opts[:env]+Time.now.to_i.to_s
+    @locked_nodes = []
     @cluster.stop_balancer do
-      @cluster.shards.each do |shard|
-        replica = connect_to_replica( shard["host"] )
-        passives = connect_to_passives( replica.passives )
-        passives.each { |node|
-          node.lock_node do
-            snap = snapshot_node(node.host)
-            tag_snapshot(snap, replica.name, node.host)
-          end
-        }
-      end
+      begin
+        @cluster.shards.each do |shard|
+          replica = connect_to_replica( shard["host"] )
+          passives = connect_to_passives( replica.passives )
+          passives.each { |node|
+            snapshot_with_lock(node, replica.name)
+          }
+        end
 
-      # config server to snapshot should be running 
-      # on the same host as mongos router at port 27019      
-      config = connect_to_config( @cluster.host )
-      config.lock_node do
-        snap = snapshot_node(config.host)
-        tag_snapshot(snap, 'CONFIG', @cluster_host)
+        # config server to snapshot should be running
+        # on the same host as mongos router at port 27019
+        config = connect_to_config( @cluster.host )
+        snapshot_with_lock(config, 'CONFIG')
+
+        wait_snapshots
+
+      ensure
+        @locked_nodes.compact!
+
+        @locked_nodes.each do |node|
+          host = node.host          # we need to save that before checking for connection
+          err = node.safe_unlock!          
+          @logger.error("Node #{host} NOT unlocked! : #{err}")    if err
+        end
       end
     end
 
     return @created_snapshots
+  end
+
+  def snapshot_with_lock(node, replica)
+    locked = node.lock_node!
+    if locked
+      @locked_nodes.push( node )
+      snap = snapshot_node(node.host)
+      tag_snapshot(snap, replica, node.host)
+    else
+      @logger.warning("Could not lock node #{node.host}. No snapshotting")
+    end    
   end
 
   def snapshot_node( node )
@@ -69,12 +88,14 @@ class MongoShardBackup
     @logger.info("Snapshotting the #{vol} (#{@opts[:device_name]}) of #{instance[:aws_instance_id]} (#{node})")
     snapshot = EC2Conn.create_snapshot( vol, description(instance, vol) )
 
-    @logger.debug("Waiting for snapshot to finish")
-    EC2Conn.wait_snapshot( snapshot[:aws_id] ) unless @opts[:nowait]
-
     @backed_volumes.push( vol )
     @created_snapshots.push( snapshot[:aws_id] )
     return snapshot
+  end
+
+  def wait_snapshots
+    @logger.info("Waiting for snapshots #{@created_snapshots.join(", ")} to finish")
+    EC2Conn.wait_snapshot( @created_snapshots ) unless @opts[:nowait]
   end
 
   def tag_snapshot( snap, replica, node)
@@ -131,19 +152,14 @@ class MongoShardBackup
   end
 
   def setup_logger
-    if @opts[:verbose]
-      @logger = Logger.new( STDERR )
-    else
-      @logger = Logger.new( nil )
-    end
-    @logger.level = @opts[:verbose]
-
+    @logger = Logger.new( STDERR )
+    @logger.level = @opts[:verbose] || 3
     EC2Conn.ec2( :logger => @logger )
   end
 
 #  you can use MongoBackup.backup(m) to make backups
   def self.backup(*args)
-    cluster=new(*args)
-    cluster.backup
+    backup=self.new(*args)
+    backup.run
   end
 end
