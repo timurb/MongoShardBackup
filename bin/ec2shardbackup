@@ -36,7 +36,14 @@
 #   -v [level], --verbose [level]
 #       show some log information. the less level is the more verbose logging
 #       you get. level defaults to 1 if not specified.
-#       Default: no logging
+#       Default: level 3 (ERROR) logging
+#
+#   -l filename, --logfile filename
+#       send log messages to 'filename' instead of STDERR
+#       Default: STDERR
+#
+#   -q, --quiet
+#       don't print snapshot IDs on STDOUT after operations
 #
 
 require 'rubygems'
@@ -50,7 +57,9 @@ OPTIONS =  [
   [ '--description', '-t', GetoptLong::OPTIONAL_ARGUMENT ],   # 2
   [ '--env','-e', GetoptLong::OPTIONAL_ARGUMENT ],            # 3
   [ '--tag', '-T', GetoptLong::OPTIONAL_ARGUMENT ],           # 4
-  [ '--verbose', '-v', GetoptLong::OPTIONAL_ARGUMENT ]        # 5
+  [ '--verbose', '-v', GetoptLong::OPTIONAL_ARGUMENT ],       # 5
+  [ '--logfile', '-l', GetoptLong::OPTIONAL_ARGUMENT ],       # 6
+  [ '--quiet', '-q',  GetoptLong::OPTIONAL_ARGUMENT ],        # 7
 ]
 
 options={}
@@ -73,6 +82,14 @@ opts.each do |opt,arg|
      when OPTIONS[5][0]
        arg = "1" if arg.empty?
        options[:verbose] = arg.to_i
+     when OPTIONS[6][0]
+       if arg.empty?
+         puts "No logfile specified, logging to STDERR"
+       else
+         options[:logfile] = arg
+       end
+     when OPTIONS[7][0]
+       options[:quiet] = true
    end
 end
 
@@ -83,4 +100,4 @@ end
 
 backup=MongoShardBackup.new( ARGV[0], options )
 backup.run
-puts backup.created_snapshots.join("\n")
+puts backup.created_snapshots.join("\n")  unless options[:quiet]

@@ -17,6 +17,7 @@ class MongoShardBackup
       :description => 'Backup of $c($i,$v), $d [$n]',
       :env => cluster.to_s,
       :tags => {},
+      :logfile => STDERR,
     }.merge(opts)
 
     setup_logger
@@ -152,7 +153,7 @@ class MongoShardBackup
   end
 
   def setup_logger
-    @logger = Logger.new( STDERR )
+    @logger = Logger.new( @opts[:logfile] )
     @logger.level = @opts[:verbose] || 3
     EC2Conn.ec2( :logger => @logger )
   end
