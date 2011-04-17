@@ -12,7 +12,7 @@ require 'rake/gempackagetask'
 
 spec = Gem::Specification.new do |s|
   s.name = 'mongo_shard_backup'
-  s.version = '0.0.2'
+  s.version = '0.0.3'
   s.has_rdoc = true
   s.extra_rdoc_files = ['README.rdoc', 'LICENSE']
   s.summary = 'A tool to backup sharded mongo cluster on EC2'
