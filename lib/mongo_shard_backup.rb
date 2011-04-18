@@ -50,7 +50,10 @@ class MongoShardBackup
         # config server to snapshot should be running
         # on the same host as mongos router at port 27019
         config = connect_to_config( @cluster.host )
-        snapshot_with_lock(config, 'CONFIG')
+
+        #   it seems locking the config server is unsafe, so snapshot it without locking
+        snap = snapshot_node(config.host)
+        tag_snapshot(snap, 'CONFIG', config.host)
 
         wait_snapshots
 
