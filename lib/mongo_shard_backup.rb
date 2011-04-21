@@ -48,7 +48,7 @@ class MongoShardBackup
         end
 
         # config server to snapshot should be running
-        # on the same host as mongos router at port 27019
+        # on the same host as mongos router at port 38019
         config = connect_to_config( @cluster.host )
 
         #   it seems locking the config server is unsafe, so snapshot it without locking
@@ -137,7 +137,7 @@ class MongoShardBackup
   end
 
   def connect_to_config(host)
-    Mongo::Connection.new(host,27019, :logger => @logger)
+    Mongo::Connection.new(host,38019, :logger => @logger)
   end
 
   #   splits replica string into array to feed it into Mongo::ReplSetConnection and
